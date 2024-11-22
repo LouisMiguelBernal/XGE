@@ -5,16 +5,34 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
+import base64
 
 from sklearn.preprocessing import LabelEncoder, RobustScaler
 from sklearn.model_selection import train_test_split, GridSearchCV
 from xgboost import XGBRegressor
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
-# page and title
-st.set_page_config(page_title="XGE", layout="wide")
-st.markdown("<h1>X<span style='color:#0057A0;'>GE</span></h1>", unsafe_allow_html=True)
+st.set_page_config(page_title="XGE", layout="wide", page_icon='assets/icon.png')
 
+# Function to convert image to base64
+def get_base64_image(image_path):
+    with open(image_path, "rb") as image_file:
+        encoded = base64.b64encode(image_file.read()).decode()
+    return encoded
+
+# Convert logo to base64
+logo_base64 = get_base64_image('assets/icon.png')
+
+# Display the logo and title using HTML with added margin/padding to move it down
+st.markdown(
+    f"""
+    <div style="display: flex; align-items: center; padding-top: 50px;">
+        <img src="data:image/png;base64,{logo_base64}" style="width: 100px; height: auto; margin-right: 10px;">
+        <h1 style="margin: 0;">X<span style="color:#0057A0;">GE</span></h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 st.markdown("""
     <style>
     .title {
@@ -151,7 +169,8 @@ with predict:
 
         # Display the updated dataframe with original values and predictions
         st.title("Prediction Result")
-        st.write('The XGE Model Processed the data in one click')
+        st.markdown("""<h4>The XGE Model Processed the data in one click
+                <span/span></h4>""", unsafe_allow_html=True)
         st.dataframe(original_df.head(), width=1800, height=200)
 
         # Create two columns for side-by-side display
@@ -159,7 +178,7 @@ with predict:
 
         with col1:
             # Plot the distribution of the predictions using Plotly
-            fig = px.histogram(original_df, x='Prediction', nbins=30, marginal="box", title="Model Prediction Distribution")
+            fig = px.histogram(original_df, x='Prediction', nbins=30, marginal="box", title="Data Prediction Distribution")
             fig.update_layout(bargap=0.1)
             st.plotly_chart(fig)
 
@@ -175,13 +194,38 @@ with predict:
 
 
 with model_info:
+    st.title('XGBoost')
+    st.markdown("""<h4>The boosting algorithm also known as eXtreme Gradient Boosting (XGBoost) is a powerful machine learning algorithm. 
+                The XGE is developed and tuned by key features of maker, model, vehicle class, engine size, cylinders, transmission, fuel and fuel consumption
+                <span/span></h4>""", unsafe_allow_html=True)
 
     model_df = pd.read_csv("assets/car.csv")  
     model_df.columns = model_df.columns.str.strip().str.lower().str.replace(' ', '_').str.replace(':', '').str.replace('*', '')
     model_df.rename(columns={'model': 'year', 'make': 'maker', 'model.1': 'model', 'unnamed_9': 'fuel_consumption2',
                        'unnamed_10': 'fuel_consumption3', 'unnamed_11': 'fuel_consumption4'}, inplace=True)
-
     model_df.drop(['year', 'fuel_consumption2', 'fuel_consumption3', 'fuel_consumption4'], axis=1, inplace=True)
+
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        # Feature Importance bar chart from XGBoost model
+        importances = model.feature_importances_  #
+        feature_names = model_df.columns[:-1]  
+
+        fig = px.bar(x=feature_names, y=importances, 
+                    labels={'x': 'Features', 'y': 'Importance'},
+                    title="XGBoost Feature Importance")
+        st.plotly_chart(fig)
+    with col2:
+        # Pie chart for 'vehicle_class' using Plotly
+        vehicle_class_counts = model_df['vehicle_class'].value_counts().nlargest(5)
+
+        # Create pie chart
+        fig = go.Figure(data=[go.Pie(labels=vehicle_class_counts.index, values=vehicle_class_counts.values, 
+                                    hoverinfo='label+percent', textinfo='percent', hole=0.3)])
+        fig.update_layout(title="Vehicle Class Chart")
+        st.plotly_chart(fig)
 
     # top 10 manufacturers chart
     top_10_makers = model_df['maker'].value_counts().nlargest(10)
@@ -189,39 +233,21 @@ with model_info:
     fig = px.bar(top_10_makers, y=top_10_makers.index, x=top_10_makers.values,
                 labels={'x': 'Count'},
                 title='Top 10 Car Manufacturers',
-                color=top_10_makers.index,  # You can color by manufacturer
-                color_discrete_sequence=['lightblue'] * len(top_10_makers))  # Set color to lightblue
-    st.plotly_chart(fig)
-
-    # Vehicle class bar chart
-    vehicle_class_counts = model_df['vehicle_class'].value_counts().nlargest(5)
-    fig = px.bar(vehicle_class_counts, x=vehicle_class_counts.index, y=vehicle_class_counts.values, 
-                 labels={'y': 'Count', 'x': 'Vehicle Class'},
-                 title='Top 5 Vehicle Class')
-    st.plotly_chart(fig)
-
-
-    # Feature Importance bar chart from XGBoost model
-    importances = model.feature_importances_  #
-    feature_names = model_df.columns[:-1]  
-
-    fig = px.bar(x=feature_names, y=importances, 
-                 labels={'x': 'Features', 'y': 'Importance'},
-                 title="XGBoost Feature Importance")
+                color=top_10_makers.index) # You can color by manufacturer
     st.plotly_chart(fig)
 
 
 
 
-# Footer content
-st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">', unsafe_allow_html=True)
-
-footer = """
+# Footer content with logo as base64
+footer = f"""
 <hr>
 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; padding: 10px 0;">
-  <!-- QuantMaven Title -->
   <div style="flex-grow: 1; text-align: left;">
-    <h1 class="body" style="margin: 0;">X<span class="blue">GE</span></h1>
+    <div style="display: flex; align-items: center;">
+        <img src="data:image/png;base64,{logo_base64}" style="width: 100px; margin-right: 10px;">
+        <h1 style="margin: 0;">X<span style="color:#0057A0;">GE</span></h1>
+    </div>
   </div>
   <!-- Copyright -->
   <div style="flex-grow: 1; text-align: center;">
@@ -239,4 +265,5 @@ footer = """
 """
 
 # Display footer
+st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">', unsafe_allow_html=True)
 st.markdown(footer, unsafe_allow_html=True)
