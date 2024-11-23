@@ -12,6 +12,12 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from xgboost import XGBRegressor
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
+def calculate_metrics(y_test, y_pred):
+    r2 = r2_score(y_test, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+    mae = mean_absolute_error(y_test, y_pred)
+    return r2, rmse, mae
+
 st.set_page_config(page_title="XGE", layout="wide", page_icon='assets/icon.png')
 
 # Function to convert image to base64
@@ -22,6 +28,7 @@ def get_base64_image(image_path):
 
 # Convert logo to base64
 logo_base64 = get_base64_image('assets/icon.png')
+
 
 # Display the logo and title using HTML with added margin/padding to move it down
 st.markdown(
@@ -122,12 +129,14 @@ def preprocess_and_predict(x_train, x_test, y_train, y_test, rc):
     xg_grid.fit(x_train, y_train)
     xgb = xg_grid.best_estimator_
 
-    return xgb, rc
+    y_pred = xgb.predict(x_test)
+    r2, rmse, mae = calculate_metrics(y_test, y_pred)
+    return xgb, r2, rmse, mae
 
 x_train, x_test, y_train, y_test, rc = load_and_preprocess_data()
-model, scaler = preprocess_and_predict(x_train, x_test, y_train, y_test, rc)
+model, r2, rmse, mae = preprocess_and_predict(x_train, x_test, y_train, y_test, rc)
 
-#input data
+# Input data for prediction
 st.sidebar.header("Input Data For Prediction")
 new_file = st.sidebar.file_uploader("", type=["csv"])
 
@@ -159,7 +168,7 @@ with predict:
 
         # Get only X variables (no 'co2_emissions')
         new_x = new_df.values
-        new_x = scaler.transform(new_x)  # Apply the same scaling used in training
+        new_x = rc.transform(new_x)  # Apply the same scaling used in training
 
         # Predict with the trained model
         predictions = model.predict(new_x)
@@ -169,8 +178,7 @@ with predict:
 
         # Display the updated dataframe with original values and predictions
         st.title("Prediction Result")
-        st.markdown("""<h4>The XGE Model Processed the data in one click
-                <span/span></h4>""", unsafe_allow_html=True)
+        st.markdown("""<h5>Efficient Predictions at Your Fingertips</h5>""", unsafe_allow_html=True)
         st.dataframe(original_df.head(), width=1800, height=200)
 
         # Create two columns for side-by-side display
@@ -192,12 +200,27 @@ with predict:
             fig.update_layout(title="Vehicle Class Chart")
             st.plotly_chart(fig)
 
+        col1, col2 = st.columns(2)
+        with col1:
+            top_makers = original_df['maker'].value_counts().nlargest(10)
+            fig = px.bar(x=top_makers.index, y=top_makers.values, 
+                        title="Manufacturers Distribution", labels={'x': 'Maker', 'y': 'Count'})
+            st.plotly_chart(fig)
 
+        with col2:
+            fig = px.scatter(original_df, x='engine_size', y='fuel_consumption', color='vehicle_class',
+                    title="Engine Size vs Fuel Consumption",
+                    labels={'engine_size': 'Engine Size (L)', 'fuel_consumption': 'Fuel Consumption (L/100km)'})
+            st.plotly_chart(fig)
+
+
+# Model Information Tab
 with model_info:
     st.title('XGBoost')
-    st.markdown("""<h4>The boosting algorithm also known as eXtreme Gradient Boosting (XGBoost) is a powerful machine learning algorithm. 
-                The XGE is developed and tuned by key features of maker, model, vehicle class, engine size, cylinders, transmission, fuel and fuel consumption
-                <span/span></h4>""", unsafe_allow_html=True)
+    st.markdown("""<h5>The boosting algorithm also known as eXtreme Gradient Boosting (XGBoost) is a powerful machine learning algorithm. 
+                The XGE is developed and tuned by key features of maker, model, vehicle class, engine size, cylinders, transmission, fuel, and fuel consumption. 
+                It builds upon the principles of gradient boosting, combining multiple weak learners—typically decision trees—into a strong predictive model.
+               </h5>""", unsafe_allow_html=True)
 
     model_df = pd.read_csv("assets/car.csv")  
     model_df.columns = model_df.columns.str.strip().str.lower().str.replace(' ', '_').str.replace(':', '').str.replace('*', '')
@@ -205,9 +228,63 @@ with model_info:
                        'unnamed_10': 'fuel_consumption3', 'unnamed_11': 'fuel_consumption4'}, inplace=True)
     model_df.drop(['year', 'fuel_consumption2', 'fuel_consumption3', 'fuel_consumption4'], axis=1, inplace=True)
 
+    # Create the R² Donut Chart
+    fig_r2 = go.Figure(go.Pie(
+        values=[r2, 1 - r2],
+        labels=["R² Score", ""],
+        hole=0.7,
+        marker=dict(colors=["#00704A", "#e6e6e6"]),
+        textinfo='none'
+    ))
+    fig_r2.add_annotation(
+        text=f"{r2 * 100:.0f}%",
+        x=0.5,
+        y=0.5,
+        showarrow=False,
+        font=dict(size=33, color="#00704A", weight = 'bold')
+    )
+    fig_r2.update_layout(
+        title="Excellent Model Fit: High R² Score",
+        margin=dict(t=40, b=10, l=10, r=10),  
+        width=250,
+        height=250
+    )
+
+    # Create the RMSE and MAE Bar Charts
+    fig_bars = go.Figure()
+    fig_bars.add_trace(go.Bar(
+        y=["RMSE"],
+        x=[rmse],
+        orientation='h',
+        marker=dict(color='#00704A'),
+        name="RMSE"
+    ))
+    fig_bars.add_trace(go.Bar(
+        y=["MAE"],
+        x=[mae],
+        orientation='h',
+        marker=dict(color='#00704A'),
+        name="MAE"
+    ))
+
+    fig_bars.update_xaxes(range=[0, 100], showgrid=True)
+    fig_bars.update_yaxes(showgrid=False)
+    fig_bars.update_layout(
+        title="Regression Model Accuracy: Low RMSE & MAE",
+        barmode='stack',
+        margin=dict(t=40, b=10, l=10, r=10),  # Increased top margin
+        height=250,
+        width=250,
+        showlegend=True,
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
 
     col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(fig_r2, use_container_width=True)
 
+    with col2:
+        st.plotly_chart(fig_bars, use_container_width=True)
     with col1:
         # Feature Importance bar chart from XGBoost model
         importances = model.feature_importances_  #
@@ -235,7 +312,6 @@ with model_info:
                 title='Top 10 Car Manufacturers',
                 color=top_10_makers.index) # You can color by manufacturer
     st.plotly_chart(fig)
-
 
 
 
