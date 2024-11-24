@@ -217,7 +217,7 @@ with predict:
 # Model Information Tab
 with model_info:
     st.title('XGBoost')
-    st.markdown("""<h5>The boosting algorithm also known as eXtreme Gradient Boosting (XGBoost) is a powerful machine learning algorithm. 
+    st.markdown("""<h5>The boosting algorithm also known as Extreme Gradient Boosting (XGBoost) is a powerful machine learning algorithm. 
                 The XGE is developed and tuned by key features of maker, model, vehicle class, engine size, cylinders, transmission, fuel, and fuel consumption. 
                 It builds upon the principles of gradient boosting, combining multiple weak learners—typically decision trees—into a strong predictive model.
                </h5>""", unsafe_allow_html=True)
