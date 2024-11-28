@@ -171,33 +171,48 @@ with predict:
     else:
         # Read the uploaded file
         original_df = pd.read_csv(new_file)
-        new_df = original_df.copy()
 
-        # Clean column names
-        new_df.columns = new_df.columns.str.strip().str.lower().str.replace(' ', '_').str.replace(':', '').str.replace('*', '')
+        # --- Clean Column Names ---
+        cleaned_df = original_df.copy()
+        cleaned_df.columns = (
+            cleaned_df.columns.str.strip()
+            .str.lower()
+            .str.replace(' ', '_')
+            .str.replace(':', '')
+            .str.replace('*', '')
+        )
 
-        # Encode categorical variables
-        for col in new_df.select_dtypes('object').columns:
-            new_df[col] = LabelEncoder().fit_transform(new_df[col])
+        # --- Encode Categorical Variables ---
+        for col in cleaned_df.select_dtypes('object').columns:
+            cleaned_df[col] = LabelEncoder().fit_transform(cleaned_df[col])
 
-        # Ensure correct columns
-        columns_to_use = ['maker', 'model', 'vehicle_class', 'engine_size', 'cylinders', 'transmission', 'fuel', 'fuel_consumption']
-        new_df = new_df[columns_to_use]
+        # --- Specify Required Columns ---
+        columns_to_use = [
+            'maker', 'model', 'vehicle_class', 'engine_size',
+            'cylinders', 'transmission', 'fuel', 'fuel_consumption'
+        ]
 
         # --- Without IQR ---
-        # Scale and predict without IQR
-        new_x_no_iqr = scaler.transform(new_df)
+        # Create a copy for the 'Without IQR' table
+        new_df_no_iqr = cleaned_df[columns_to_use].copy()
+
+        # Scale and Predict
+        new_x_no_iqr = scaler.transform(new_df_no_iqr)
         predictions_no_iqr = model_no_iqr.predict(new_x_no_iqr)
 
-        # Display results without IQR
-        original_df['Prediction (No IQR)'] = predictions_no_iqr
-        st.title("Prediction Result (Without IQR)")
-        st.dataframe(original_df.head(), width=1800, height=200)
+        # Add Predictions to Original DataFrame (Without IQR)
+        original_df_no_iqr = original_df.copy()
+        original_df_no_iqr['Prediction (No IQR)'] = predictions_no_iqr
 
+        # Display the First Table
+        st.title("Prediction Result (Without IQR)")
+        st.dataframe(original_df_no_iqr.head(), width=1800, height=200)
 
         # --- With IQR ---
-        # Apply IQR filtering
-        new_df_iqr = new_df.copy()
+        # Start Fresh for IQR Filtering
+        new_df_iqr = cleaned_df[columns_to_use].copy()
+
+        # Apply IQR Filtering
         numeric_cols = new_df_iqr.select_dtypes(include=[np.number]).columns.tolist()
         for col in numeric_cols:
             Q1 = new_df_iqr[col].quantile(0.25)
@@ -207,13 +222,15 @@ with predict:
             upper_bound = Q3 + 1.5 * IQR
             new_df_iqr = new_df_iqr[(new_df_iqr[col] >= lower_bound) & (new_df_iqr[col] <= upper_bound)]
 
-        # Scale and predict with IQR filtering
+        # Scale and Predict with IQR
         new_x_iqr = scaler.transform(new_df_iqr)
         predictions_iqr = model_iqr.predict(new_x_iqr)
 
-        # Display results with IQR
+        # Map Back to Original DataFrame (IQR Filtered Rows Only)
         original_df_iqr_filtered = original_df.loc[new_df_iqr.index].copy()
         original_df_iqr_filtered['Prediction (With IQR)'] = predictions_iqr
+
+        # Display the Second Table
         st.title("Prediction Result (With IQR)")
         st.dataframe(original_df_iqr_filtered.head(), width=1800, height=200)
 
