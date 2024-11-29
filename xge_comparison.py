@@ -251,7 +251,7 @@ with model_info:
         # Create R² Donut Chart
     def create_r2_donut_chart(r2, title, is_with_iqr=False):
         # Set color to red if it's the 'With IQR' chart
-        color = "#FF0000" if is_with_iqr else "#0057A0"
+        color = "#FF0000" if is_with_iqr else "#00704A"
         
         fig_r2 = go.Figure(go.Pie(
             values=[r2, 1 - r2],
