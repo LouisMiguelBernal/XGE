@@ -278,7 +278,7 @@ with model_info:
     # Create RMSE and MAE Bar Chart
     def create_error_bar_chart(rmse, mae, title, is_with_iqr=False):
         # Set color to red if it's the 'With IQR' chart
-        color = "#FF0000" if is_with_iqr else "#00704A"
+        color = "#FF0000" if is_with_iqr else "#0057A0"
         
         fig_bars = go.Figure()
         fig_bars.add_trace(go.Bar(
